@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JOY PURGE GAME - ADMIN</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Montserrat', sans-serif; background: #0a0a0a; color: #fff; padding: 20px; }
+        h1, h2 { color: #FFD700; font-family: 'Cinzel', serif; margin-bottom: 20px; }
+        .card { background: #1a1a1a; border: 1px solid #8B0000; border-radius: 20px; padding: 25px; margin-bottom: 30px; }
+        input, select, textarea { background: #0a0a0a; border: 1px solid #FFD700; padding: 10px; border-radius: 10px; color: white; width: 100%; margin: 8px 0; }
+        button { background: linear-gradient(135deg, #8B0000, #cc0000); border: none; padding: 10px 20px; border-radius: 40px; color: #FFD700; cursor: pointer; margin: 5px; }
+        .btn-danger { background: #c0392b; }
+        .btn-success { background: #27ae60; }
+        .item { background: #0a0a0a; border-left: 4px solid #FFD700; padding: 15px; margin-bottom: 10px; border-radius: 10px; }
+        .login-box { max-width: 400px; margin: 100px auto; text-align: center; }
+        .pin { font-size: 2em; text-align: center; letter-spacing: 5px; }
+    </style>
+</head>
+<body>
+<div id="login" class="login-box card">
+    <h1>👑 ADMIN</h1>
+    <input type="password" id="pin" class="pin" maxlength="4" placeholder="CODE">
+    <button onclick="checkPin()">🔐 ENTRER</button>
+    <div id="loginError" style="color: red;"></div>
+    <a href="index.html" style="color:#FFD700;">← Retour</a>
+</div>
+<div id="adminPanel" style="display: none;">
+    <div class="card"><h1>⚜️ PANEL ADMIN ⚜️</h1><button onclick="logout()">🚪 DÉCONNEXION</button></div>
+    <div class="card"><h2>📝 PARTIE 1 (TEXTE)</h2>
+        <input type="text" id="q1Text" placeholder="Question"><input type="text" id="q1A" placeholder="A"><input type="text" id="q1B" placeholder="B">
+        <input type="text" id="q1C" placeholder="C"><input type="text" id="q1D" placeholder="D"><select id="q1Correct"><option value="0">A</option><option value="1">B</option><option value="2">C</option><option value="3">D</option></select>
+        <button onclick="addQuestion('partie1')" class="btn-success">➕ AJOUTER</button><div id="questions1List"></div>
+    </div>
+    <div class="card"><h2>🖼️ PARTIE 2 (IMAGES)</h2>
+        <input type="text" id="q2Text" placeholder="Question"><input type="file" id="q2Image" accept="image/*">
+        <input type="text" id="q2A" placeholder="A"><input type="text" id="q2B" placeholder="B"><input type="text" id="q2C" placeholder="C"><input type="text" id="q2D" placeholder="D">
+        <select id="q2Correct"><option value="0">A</option><option value="1">B</option><option value="2">C</option><option value="3">D</option></select>
+        <button onclick="addQuestion('partie2')" class="btn-success">➕ AJOUTER</button><div id="questions2List"></div>
+    </div>
+    <div class="card"><h2>⚠️ DANGER</h2><button onclick="deleteAllData()" class="btn-danger">🗑️ SUPPRIMER TOUTES DONNÉES</button></div>
+</div>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-database-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-storage-compat.js"></script>
+<script>
+    const firebaseConfig = {
+        apiKey: "AIzaSyB3yYAuiGqbtrbZ1aSYxAjduZ65adNIpag",
+        authDomain: "purge-game-58718.firebaseapp.com",
+        databaseURL: "https://purge-game-58718-default-rtdb.europe-west1.firebasedatabase.app",
+        projectId: "purge-game-58718",
+        storageBucket: "purge-game-58718.firebasestorage.app",
+        messagingSenderId: "554574972856",
+        appId: "1:554574972856:web:9de17e7f77eb7b5be4b14d"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.database();
+    const storage = firebase.storage();
+    const ADMIN_PIN = "2007";
+    function checkPin() { if(document.getElementById('pin').value === ADMIN_PIN) { localStorage.setItem('adminLogged', 'true'); document.getElementById('login').style.display = 'none'; document.getElementById('adminPanel').style.display = 'block'; loadAll(); } else { document.getElementById('loginError').innerText = '❌ Code incorrect'; } }
+    if(localStorage.getItem('adminLogged') === 'true') { document.getElementById('login').style.display = 'none'; document.getElementById('adminPanel').style.display = 'block'; loadAll(); }
+    function logout() { localStorage.removeItem('adminLogged'); location.reload(); }
+    function toast(msg) { alert(msg); }
+    function escapeHtml(str) { if(!str) return ''; return str.replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[m])); }
+    async function loadAll() { await loadQuestions('partie1', 'questions1List'); await loadQuestions('partie2', 'questions2List'); }
+    async function addQuestion(mode) { var text = document.getElementById(`${mode==='partie1'?'q1':'q2'}Text`).value.trim(); var ans = [document.getElementById(`${mode==='partie1'?'q1':'q2'}A`).value.trim(), document.getElementById(`${mode==='partie1'?'q1':'q2'}B`).value.trim(), document.getElementById(`${mode==='partie1'?'q1':'q2'}C`).value.trim(), document.getElementById(`${mode==='partie1'?'q1':'q2'}D`).value.trim()]; var correct = parseInt(document.getElementById(`${mode==='partie1'?'q1':'q2'}Correct`).value); if(!text || ans.some(a=>!a)) { toast("❌ Remplissez tous les champs"); return; } var imageUrl = null; if(mode==='partie2') { var file = document.getElementById('q2Image').files[0]; if(file) { var ref = storage.ref(`questions/${Date.now()}_${file.name}`); await ref.put(file); imageUrl = await ref.getDownloadURL(); } } var data = { text:text, answers:ans, correct:correct, createdAt:Date.now() }; if(imageUrl) data.image = imageUrl; await db.ref(`questions/${mode}`).push(data); toast("✅ Question ajoutée !"); document.getElementById(`${mode==='partie1'?'q1':'q2'}Text`).value = ''; document.getElementById(`${mode==='partie1'?'q1':'q2'}A`).value = ''; document.getElementById(`${mode==='partie1'?'q1':'q2'}B`).value = ''; document.getElementById(`${mode==='partie1'?'q1':'q2'}C`).value = ''; document.getElementById(`${mode==='partie1'?'q1':'q2'}D`).value = ''; if(mode==='partie2') document.getElementById('q2Image').value = ''; loadQuestions(mode, mode==='partie1'?'questions1List':'questions2List'); }
+    async function loadQuestions(mode, containerId) { var snap = await db.ref(`questions/${mode}`).once('value'); var qs = []; snap.forEach(c => qs.push(c.val())); var container = document.getElementById(containerId); if(qs.length===0) { container.innerHTML = '<p>Aucune question</p>'; return; } container.innerHTML = qs.map((q,i) => `<div class="item"><strong>❓ ${i+1}. ${escapeHtml(q.text)}</strong><br>A. ${escapeHtml(q.answers[0])}<br>B. ${escapeHtml(q.answers[1])}<br>C. ${escapeHtml(q.answers[2])}<br>D. ${escapeHtml(q.answers[3])}<br>✅ Bonne: ${String.fromCharCode(65+q.correct)}<button onclick="deleteQuestion('${mode}', '${q.id}')" class="btn-danger">🗑️</button></div>`).join(''); }
+    window.deleteQuestion = async (mode, id) => { if(confirm("Supprimer ?")) { await db.ref(`questions/${mode}/${id}`).remove(); loadQuestions(mode, mode==='partie1'?'questions1List':'questions2List'); } };
+    async function deleteAllData() { if(confirm("⚠️ SUPPRIMER TOUTES LES DONNÉES ?")) { var cs = await db.ref('clans').once('value'); if(cs.val()) for(let k of Object.keys(cs.val())) await db.ref(`clans/${k}`).remove(); var q1 = await db.ref('questions/partie1').once('value'); if(q1.val()) for(let k of Object.keys(q1.val())) await db.ref(`questions/partie1/${k}`).remove(); var q2 = await db.ref('questions/partie2').once('value'); if(q2.val()) for(let k of Object.keys(q2.val())) await db.ref(`questions/partie2/${k}`).remove(); var f = await db.ref('forum').once('value'); if(f.val()) for(let k of Object.keys(f.val())) await db.ref(`forum/${k}`).remove(); var r = await db.ref('game_rooms').once('value'); if(r.val()) for(let k of Object.keys(r.val())) await db.ref(`game_rooms/${k}`).remove(); toast("✅ TOUTES DONNÉES SUPPRIMÉES !"); loadAll(); } }
+</script>
+</body>
+</html>
